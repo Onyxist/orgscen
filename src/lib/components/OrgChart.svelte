@@ -9,6 +9,7 @@
   export let editable = false;
   export let showSalary = false;
   export let showFte = true;
+  export let hideSensitive = false;
   export let onSelect: (id: string) => void = () => {};
   export let onMove: (id: string, managerId: string | null) => void = () => {};
 
@@ -91,7 +92,7 @@
         >
           {#if node.person.origin === 'new'}<span class="badge">New</span>{/if}
           {#if node.person.startsNewTree}<span class="break-badge">New tree</span>{/if}
-          <strong>{node.person.name || node.person.id}</strong>
+          <strong>{hideSensitive ? `Person ${node.person.id}` : (node.person.name || node.person.id)}</strong>
           <span class="role">{node.person.title || '—'}</span>
           <span class="dept">{node.person.department || 'No department'}</span>
           {#if showFte || showSalary}

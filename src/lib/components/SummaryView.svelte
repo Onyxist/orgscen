@@ -5,6 +5,7 @@
   export let people: Person[] = [];
   export let basePeople: Person[] = [];
   export let isBaseline = false;
+  export let hideSensitive = false;
 
   let population: Population = 'active';
   let table: 'department' | 'cost-center' = 'department';
@@ -24,9 +25,9 @@
     ['Headcount', String(selectedTotals.headcount)],
     ['FTE', number(selectedTotals.fte)],
     ['Weekly hours', `${number(selectedTotals.weeklyHours, 1)} h`],
-    ['Salary / month', euro(selectedTotals.salary)],
-    ['Employer cost / month', euro(selectedTotals.socialCost)],
-    ['Total / month', euro(selectedTotals.totalCost)]
+    ['Salary / month', hideSensitive ? 'Hidden' : euro(selectedTotals.salary)],
+    ['Employer cost / month', hideSensitive ? 'Hidden' : euro(selectedTotals.socialCost)],
+    ['Total / month', hideSensitive ? 'Hidden' : euro(selectedTotals.totalCost)]
   ];
 
 </script>
@@ -34,13 +35,13 @@
 <div class="summary">
   <div class="population-cards">
     <button class:active={population === 'active'} onclick={() => population = 'active'}>
-      <span>Active</span><strong>{number(active.fte)} FTE</strong><small>{active.headcount} people · {euro(active.totalCost)}/mo</small>
+      <span>Active</span><strong>{number(active.fte)} FTE</strong><small>{active.headcount} people{hideSensitive ? '' : ` · ${euro(active.totalCost)}/mo`}</small>
     </button>
     <button class:active={population === 'parked'} onclick={() => population = 'parked'}>
-      <span>Parked</span><strong>{number(parked.fte)} FTE</strong><small>{parked.headcount} people · {euro(parked.totalCost)}/mo</small>
+      <span>Parked</span><strong>{number(parked.fte)} FTE</strong><small>{parked.headcount} people{hideSensitive ? '' : ` · ${euro(parked.totalCost)}/mo`}</small>
     </button>
     <button class:active={population === 'combined'} onclick={() => population = 'combined'}>
-      <span>Combined</span><strong>{number(combined.fte)} FTE</strong><small>{combined.headcount} people · {euro(combined.totalCost)}/mo</small>
+      <span>Combined</span><strong>{number(combined.fte)} FTE</strong><small>{combined.headcount} people{hideSensitive ? '' : ` · ${euro(combined.totalCost)}/mo`}</small>
     </button>
   </div>
 
@@ -61,7 +62,7 @@
         <tbody>
           {#each rows as row (row.key)}
             <tr>
-              <td><b>{row.key}</b></td><td>{number(row.headcount,0)}</td><td>{number(row.fte)}</td><td>{number(row.weeklyHours,1)}</td><td>{euro(row.salary)}</td><td>{euro(row.socialCost)}</td><td><b>{euro(row.totalCost)}</b></td><td class:up={changeFor(row.key,row.totalCost) > 0} class:down={changeFor(row.key,row.totalCost) < 0}>{isBaseline ? '—' : `${changeFor(row.key,row.totalCost) > 0 ? '+' : ''}${euro(changeFor(row.key,row.totalCost))}`}</td><td>{euro(row.annualCost)}</td>
+              <td><b>{row.key}</b></td><td>{number(row.headcount,0)}</td><td>{number(row.fte)}</td><td>{number(row.weeklyHours,1)}</td><td>{hideSensitive ? 'Hidden' : euro(row.salary)}</td><td>{hideSensitive ? 'Hidden' : euro(row.socialCost)}</td><td><b>{hideSensitive ? 'Hidden' : euro(row.totalCost)}</b></td><td class:up={!hideSensitive && changeFor(row.key,row.totalCost) > 0} class:down={!hideSensitive && changeFor(row.key,row.totalCost) < 0}>{hideSensitive ? 'Hidden' : (isBaseline ? '—' : `${changeFor(row.key,row.totalCost) > 0 ? '+' : ''}${euro(changeFor(row.key,row.totalCost))}`)}</td><td>{hideSensitive ? 'Hidden' : euro(row.annualCost)}</td>
             </tr>
           {/each}
         </tbody>

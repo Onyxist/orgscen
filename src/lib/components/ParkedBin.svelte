@@ -6,6 +6,7 @@
   export let onSelect: (id: string) => void = () => {};
   export let onRestore: (id: string) => void = () => {};
   export let editable = false;
+  export let hideSensitive = false;
 
   $: parked = people.filter((person) => person.status === 'parked').sort((a,b) => (a.name || a.id).localeCompare(b.name || b.id));
   $: totals = calculateTotals(people, 'parked');
@@ -21,7 +22,7 @@
     </div>
     <div class="totals">
       <b>{totals.fte.toFixed(2)} FTE</b>
-      <span>{euro(totals.totalCost)}/mo</span>
+      <span>{hideSensitive ? 'Hidden' : `${euro(totals.totalCost)}/mo`}</span>
     </div>
   </div>
 
@@ -32,7 +33,7 @@
       {#each parked as person (person.id)}
         <article>
           <button class="person" type="button" onclick={() => onSelect(person.id)}>
-            <strong>{person.name || person.id}</strong>
+            <strong>{hideSensitive ? `Person ${person.id}` : (person.name || person.id)}</strong>
             <span>{person.title || '—'} · {person.department || 'No department'}</span>
           </button>
           {#if editable}<button class="restore" type="button" onclick={() => onRestore(person.id)}>Restore</button>{/if}

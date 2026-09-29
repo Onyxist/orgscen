@@ -7,6 +7,7 @@
   export let scenario: Scenario;
   export let baseline: Scenario;
   export let config: PrintConfig;
+  export let hideSensitive = false;
 
   const euro = (value: number) => new Intl.NumberFormat('en', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value || 0);
   const dec = (value: number, digits = 2) => new Intl.NumberFormat('en', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value || 0);
@@ -33,15 +34,15 @@
       <header><div><span>Organization scenario</span><h1>{config.title || scenario.name}</h1><p>{scenario.isBaseline ? 'Current organization' : `Based on: ${scenario.basedOnScenarioName ?? 'Current organization'}`}</p></div><div class="date">{new Date().toLocaleDateString()}</div></header>
       {#if config.note}<div class="note">{config.note}</div>{/if}
       <div class="population">
-        <div><span>Active</span><b>{dec(active.fte)} FTE</b><small>{active.headcount} people{config.financialDetail !== 'none' ? ` · ${euro(active.totalCost)}/mo` : ''}</small></div>
-        <div><span>Parked</span><b>{dec(parked.fte)} FTE</b><small>{parked.headcount} people{config.financialDetail !== 'none' ? ` · ${euro(parked.totalCost)}/mo` : ''}</small></div>
-        <div><span>Combined</span><b>{dec(combined.fte)} FTE</b><small>{combined.headcount} people{config.financialDetail !== 'none' ? ` · ${euro(combined.totalCost)}/mo` : ''}</small></div>
+        <div><span>Active</span><b>{dec(active.fte)} FTE</b><small>{active.headcount} people{config.financialDetail !== 'none' && !hideSensitive ? ` · ${euro(active.totalCost)}/mo` : ''}</small></div>
+        <div><span>Parked</span><b>{dec(parked.fte)} FTE</b><small>{parked.headcount} people{config.financialDetail !== 'none' && !hideSensitive ? ` · ${euro(parked.totalCost)}/mo` : ''}</small></div>
+        <div><span>Combined</span><b>{dec(combined.fte)} FTE</b><small>{combined.headcount} people{config.financialDetail !== 'none' && !hideSensitive ? ` · ${euro(combined.totalCost)}/mo` : ''}</small></div>
       </div>
 
       {#if config.financialDetail !== 'none'}
         <div class="tables two">
-          <div><h2>Departments</h2><table><thead><tr><th>Department</th><th>People</th><th>FTE</th><th>Total/mo</th></tr></thead><tbody>{#each departments as row}<tr><td>{row.key}</td><td>{dec(row.headcount,0)}</td><td>{dec(row.fte)}</td><td>{euro(row.totalCost)}</td></tr>{/each}</tbody></table></div>
-          <div><h2>Cost centers</h2><table><thead><tr><th>Cost center</th><th>FTE*</th><th>Salary/mo</th><th>Total/mo</th></tr></thead><tbody>{#each costCenters as row}<tr><td>{row.key}</td><td>{dec(row.fte)}</td><td>{euro(row.salary)}</td><td>{euro(row.totalCost)}</td></tr>{/each}</tbody></table><small class="foot">*FTE belongs entirely to the primary cost center.</small></div>
+          <div><h2>Departments</h2><table><thead><tr><th>Department</th><th>People</th><th>FTE</th><th>Total/mo</th></tr></thead><tbody>{#each departments as row}<tr><td>{row.key}</td><td>{dec(row.headcount,0)}</td><td>{dec(row.fte)}</td><td>{hideSensitive ? 'Hidden' : euro(row.totalCost)}</td></tr>{/each}</tbody></table></div>
+          <div><h2>Cost centers</h2><table><thead><tr><th>Cost center</th><th>FTE*</th><th>Salary/mo</th><th>Total/mo</th></tr></thead><tbody>{#each costCenters as row}<tr><td>{row.key}</td><td>{dec(row.fte)}</td><td>{euro(row.salary)}</td><td>{hideSensitive ? 'Hidden' : euro(row.totalCost)}</td></tr>{/each}</tbody></table><small class="foot">*FTE belongs entirely to the primary cost center.</small></div>
         </div>
       {/if}
     </section>
@@ -55,10 +56,10 @@
           <div class="branch">
             {#each branch.items as item, index}
               <div class:new-role={item.person.origin === 'new'} class="print-person" style={`--depth:${item.depth}`}>
-                <b>{item.person.name || item.person.id}{item.person.origin === 'new' ? ' · NEW' : ''}</b>
+                <b>{hideSensitive ? `Person ${item.person.id}` : (item.person.name || item.person.id)}{item.person.origin === 'new' ? ' · NEW' : ''}</b>
                 <span>{item.person.title || '—'} · {item.person.department || 'No department'}</span>
                 {#if item.person.startsNewTree}<em>Visual tree starts here</em>{/if}
-                {#if config.financialDetail === 'full'}<small>{dec(item.person.workTimePct / 100)} FTE · {euro(item.person.salary)}/mo · {item.person.primaryCostCenter || 'No cost center'}</small>{/if}
+                {#if config.financialDetail === 'full'}<small>{dec(item.person.workTimePct / 100)} FTE{hideSensitive ? '' : ` · ${euro(item.person.salary)}/mo`} · {item.person.primaryCostCenter || 'No cost center'}</small>{/if}
               </div>
             {/each}
           </div>
@@ -69,8 +70,8 @@
 
   {#if config.includeParked && parkedPeople.length}
     <section class="print-page parked-page">
-      <header><div><span>Separate population</span><h1>Parked people</h1><p>{parked.headcount} people · {dec(parked.fte)} FTE{config.financialDetail !== 'none' ? ` · ${euro(parked.totalCost)}/mo` : ''}</p></div></header>
-      <table><thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Primary cost center</th><th>FTE</th>{#if config.financialDetail === 'full'}<th>Salary/mo</th><th>Total/mo</th>{/if}</tr></thead><tbody>{#each parkedPeople as person}<tr><td><b>{person.name || person.id}</b></td><td>{person.title || '—'}</td><td>{person.department || '—'}</td><td>{person.primaryCostCenter || '—'}</td><td>{dec(person.workTimePct / 100)}</td>{#if config.financialDetail === 'full'}<td>{euro(person.salary)}</td><td>{euro(person.salary * (1 + person.socialCostPct / 100))}</td>{/if}</tr>{/each}</tbody></table>
+      <header><div><span>Separate population</span><h1>Parked people</h1><p>{parked.headcount} people · {dec(parked.fte)} FTE{config.financialDetail !== 'none' && !hideSensitive ? ` · ${euro(parked.totalCost)}/mo` : ''}</p></div></header>
+      <table><thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Primary cost center</th><th>FTE</th>{#if config.financialDetail === 'full'}<th>Salary/mo</th><th>Total/mo</th>{/if}</tr></thead><tbody>{#each parkedPeople as person}<tr><td><b>{hideSensitive ? `Person ${person.id}` : (person.name || person.id)}</b></td><td>{person.title || '—'}</td><td>{person.department || '—'}</td><td>{person.primaryCostCenter || '—'}</td><td>{dec(person.workTimePct / 100)}</td>{#if config.financialDetail === 'full'}<td>{hideSensitive ? 'Hidden' : euro(person.salary)}</td><td>{hideSensitive ? 'Hidden' : euro(person.salary * (1 + person.socialCostPct / 100))}</td>{/if}</tr>{/each}</tbody></table>
     </section>
   {/if}
 </div>

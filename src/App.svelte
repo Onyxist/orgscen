@@ -22,6 +22,7 @@
   import { defaultPrintConfig, type PrintConfig } from './lib/domain/print';
   import { downloadText, exportCsvProject, parseCsvProject } from './lib/io/csv';
   import { parseProject, serializeProject } from './lib/io/project';
+  import { decryptProject, encryptProject, isEncryptedProject } from './lib/io/crypto';
   import type { LayoutMode } from './lib/org/layout';
 
   let project: Project | null = null;
@@ -29,6 +30,7 @@
   let layoutMode: LayoutMode = 'branches';
   let zoom = 0.9;
   let showSalary = false;
+  let hideSensitive = false;
   let showFte = true;
   let selectedId: string | null = null;
   let showNewScenario = false;
@@ -53,7 +55,13 @@
   async function importFile(file: File) {
     try {
       const text = await file.text();
-      project = file.name.toLowerCase().endsWith('.json') ? parseProject(text) : parseCsvProject(text);
+      if (isEncryptedProject(text)) {
+        const password = prompt('Project password');
+        if (password === null) return;
+        project = await decryptProject(text, password);
+      } else {
+        project = file.name.toLowerCase().endsWith('.json') ? parseProject(text) : parseCsvProject(text);
+      }
       selectedId = null;
       const loaded = currentScenario(project);
       printConfig = defaultPrintConfig(loaded.name);
@@ -181,11 +189,28 @@
 
   function saveProject() {
     if (!project) return;
+    if (hideSensitive && !confirm('Privacy mode only hides data on screen. The JSON file contains names and salary data. Continue?')) return;
     downloadText('orgscenario-project.json', serializeProject(project), 'application/json;charset=utf-8');
+  }
+
+  async function saveEncryptedProject() {
+    if (!project) return;
+    const password = prompt('Password for encrypted project file');
+    if (!password) return;
+    const confirmation = prompt('Type the password again');
+    if (confirmation !== password) return alert('Passwords do not match.');
+    try {
+      const encrypted = await encryptProject(project, password);
+      downloadText('orgscenario-project.enc.json', encrypted, 'application/json;charset=utf-8');
+      message = 'Encrypted project saved.';
+    } catch (error) {
+      alert(error instanceof Error ? error.message : String(error));
+    }
   }
 
   function exportCsv() {
     if (!project) return;
+    if (hideSensitive && !confirm('Privacy mode only hides data on screen. CSV export contains names and salary data. Continue?')) return;
     downloadText('orgscenario-all-scenarios.csv', exportCsvProject(project), 'text/csv;charset=utf-8');
   }
 
@@ -207,8 +232,9 @@
   <header class="topbar">
     <div class="brand"><div class="mark">O</div><div><h1>OrgScenario</h1><span>Organization & cost scenario modeling</span></div></div>
     <div class="top-actions">
-      <label class="file-button">Import<input type="file" accept=".csv,.json,text/csv,application/json" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); event.currentTarget.value = ''; }} /></label>
-      <button type="button" disabled={!project} onclick={saveProject}>Save project</button>
+      <label class="file-button">Import<input type="file" accept=".csv,.json,.enc,text/csv,application/json" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); event.currentTarget.value = ''; }} /></label>
+      <button type="button" disabled={!project} onclick={saveProject}>Save JSON</button>
+      <button type="button" disabled={!project} onclick={saveEncryptedProject}>Save encrypted</button>
       <button type="button" disabled={!project} onclick={exportCsv}>Export CSV</button>
       <button type="button" disabled={!project} onclick={openPrint}>Print</button>
     </div>
@@ -236,7 +262,8 @@
           <label>Layout<select bind:value={layoutMode}><option value="branches">Compact branches</option><option value="tree">Traditional tree</option></select></label>
           <label>Zoom <span>{Math.round(zoom * 100)}%</span><input type="range" min="0.55" max="1.2" step="0.05" bind:value={zoom} /></label>
           <label class="check"><input type="checkbox" bind:checked={showFte} />Show FTE</label>
-          <label class="check"><input type="checkbox" bind:checked={showSalary} />Show salary</label>
+          <label class="check"><input type="checkbox" bind:checked={showSalary} disabled={hideSensitive} />Show salary</label>
+          <label class="check"><input type="checkbox" bind:checked={hideSensitive} />Hide names & salary</label>
         {/if}
       </section>
 
@@ -260,16 +287,16 @@
 
     <main>
       {#if !project || !scenario || !baseline}
-        <div class="welcome"><div><span>Local workforce modeling</span><h2>Try the org before doing it for real.</h2><p>Import the CSV you already have, or build from scratch. Then create scenarios, move people around, park roles, split costs, and print something a human can actually read.</p><div class="welcome-actions"><label class="file-button primary">Import CSV or JSON<input type="file" accept=".csv,.json" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); event.currentTarget.value = ''; }} /></label><button type="button" class="secondary" onclick={startFromScratch}>Build from scratch</button></div><small>No account. No backend. No database.</small></div></div>
+        <div class="welcome"><div><span>Organization scenario modeling</span><p>Import an existing organization from CSV, or start from scratch.</p><div class="welcome-actions"><label class="file-button primary">Import CSV or JSON<input type="file" accept=".csv,.json,.enc" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); event.currentTarget.value = ''; }} /></label><button type="button" class="secondary" onclick={startFromScratch}>Build from scratch</button></div><small>Only runs in your browser.</small></div></div>
       {:else}
         <div class="scenario-bar"><div><span>{scenario.isBaseline ? 'Comparison base' : 'Scenario'}</span><h2>{scenario.name}</h2></div><div class="scenario-meta">{scenario.people.filter((person) => person.status === 'active').length} active · {scenario.people.filter((person) => person.status === 'parked').length} parked</div></div>
         {#if view === 'org'}
           <div class="org-area">
-            <OrgChart people={scenario.people} {layoutMode} {zoom} {showSalary} {showFte} selectedId={selectedId} editable={!scenario.isBaseline} onSelect={(id) => selectedId = id} onMove={movePerson} />
-            <ParkedBin people={scenario.people} editable={!scenario.isBaseline} onSelect={(id) => selectedId = id} onRestore={restoreParked} />
+            <OrgChart people={scenario.people} {layoutMode} {zoom} showSalary={showSalary && !hideSensitive} {showFte} {hideSensitive} selectedId={selectedId} editable={!scenario.isBaseline} onSelect={(id) => selectedId = id} onMove={movePerson} />
+            <ParkedBin people={scenario.people} {hideSensitive} editable={!scenario.isBaseline} onSelect={(id) => selectedId = id} onRestore={restoreParked} />
           </div>
         {:else}
-          <SummaryView people={scenario.people} basePeople={baseline.people} isBaseline={scenario.isBaseline} />
+          <SummaryView people={scenario.people} basePeople={baseline.people} isBaseline={scenario.isBaseline} {hideSensitive} />
         {/if}
       {/if}
     </main>
@@ -284,4 +311,4 @@
   {/key}
 {/if}
 {#if showPrint}<PrintDialog config={printConfig} onPrint={printReport} onClose={() => showPrint = false} />{/if}
-{#if scenario && baseline}<PrintReport {scenario} {baseline} config={printConfig} />{/if}
+{#if scenario && baseline}<PrintReport {scenario} {baseline} config={printConfig} {hideSensitive} />{/if}
