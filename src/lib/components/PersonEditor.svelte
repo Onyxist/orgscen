@@ -27,11 +27,11 @@
 
 <aside class="drawer">
   <div class="head">
-    <div><span>{editable ? 'Scenario person' : 'Current organisation'}</span><h2>{draft.name || draft.id}</h2></div>
+    <div><span>{editable ? 'Scenario person' : 'Current organization'}</span><h2>{draft.name || draft.id}</h2></div>
     <button type="button" onclick={onClose}>×</button>
   </div>
 
-  {#if !editable}<div class="notice">Current organisation is read-only. Create a scenario to edit it.</div>{/if}
+  {#if !editable}<div class="notice">Current organization is read-only. Create a scenario to edit it.</div>{/if}
 
   <fieldset disabled={!editable}>
     <div class="grid two"><label>ID<input value={draft.id} disabled /></label><label>Headcount<input type="number" step="0.01" bind:value={draft.headcount} /></label></div>
@@ -39,7 +39,7 @@
     <label>Role / title<input bind:value={draft.title} /></label>
     <label>Department<input bind:value={draft.department} /></label>
     <div class="grid two"><label>Work time %<input type="number" step="0.01" bind:value={draft.workTimePct} /></label><label>Salary / month<input type="number" step="0.01" bind:value={draft.salary} /></label></div>
-    <div class="grid two"><label>Employer cost %<input type="number" step="0.01" bind:value={draft.socialCostPct} /></label><label>Primary cost centre<input bind:value={draft.primaryCostCenter} placeholder="e.g. CC100" /></label></div>
+    <div class="grid two"><label>Employer cost %<input type="number" step="0.01" bind:value={draft.socialCostPct} /></label><label>Primary cost center<input bind:value={draft.primaryCostCenter} placeholder="e.g. CC100" /></label></div>
     <label>Manager
       <select bind:value={draft.managerId}>
         <option value={null}>— No manager —</option>
@@ -52,7 +52,7 @@
 
     <section class="allocation">
       <div class="section-head">
-        <div><h3>Salary allocation</h3><p>FTE and headcount always stay 100% in the primary cost centre.</p></div>
+        <div><h3>Salary allocation</h3><p>FTE and headcount always stay 100% in the primary cost center.</p></div>
         <button type="button" onclick={addAllocation}>+ Add split</button>
       </div>
 
@@ -62,7 +62,7 @@
         <div class="allocation-list">
           {#each draft.costAllocations as allocation, index}
             <div class="allocation-row">
-              <input aria-label="Cost centre" placeholder="Cost centre" bind:value={allocation.costCenter} />
+              <input aria-label="Cost center" placeholder="Cost center" bind:value={allocation.costCenter} />
               <input aria-label="Percentage" type="number" step="0.01" min="0" max="100" bind:value={allocation.percent} />
               <span>%</span>
               <button type="button" aria-label="Remove allocation" onclick={() => removeAllocation(index)}>×</button>

@@ -30,7 +30,7 @@
 <div id="print-root">
   {#if config.content === 'report' || config.content === 'summary'}
     <section class="print-page summary-page">
-      <header><div><span>Organisation scenario</span><h1>{config.title || scenario.name}</h1><p>{scenario.isBaseline ? 'Current organisation' : `Based on: ${scenario.basedOnScenarioName ?? 'Current organisation'}`}</p></div><div class="date">{new Date().toLocaleDateString()}</div></header>
+      <header><div><span>Organization scenario</span><h1>{config.title || scenario.name}</h1><p>{scenario.isBaseline ? 'Current organization' : `Based on: ${scenario.basedOnScenarioName ?? 'Current organization'}`}</p></div><div class="date">{new Date().toLocaleDateString()}</div></header>
       {#if config.note}<div class="note">{config.note}</div>{/if}
       <div class="population">
         <div><span>Active</span><b>{dec(active.fte)} FTE</b><small>{active.headcount} people{config.financialDetail !== 'none' ? ` · ${euro(active.totalCost)}/mo` : ''}</small></div>
@@ -41,7 +41,7 @@
       {#if config.financialDetail !== 'none'}
         <div class="tables two">
           <div><h2>Departments</h2><table><thead><tr><th>Department</th><th>People</th><th>FTE</th><th>Total/mo</th></tr></thead><tbody>{#each departments as row}<tr><td>{row.key}</td><td>{dec(row.headcount,0)}</td><td>{dec(row.fte)}</td><td>{euro(row.totalCost)}</td></tr>{/each}</tbody></table></div>
-          <div><h2>Cost centres</h2><table><thead><tr><th>Cost centre</th><th>FTE*</th><th>Salary/mo</th><th>Total/mo</th></tr></thead><tbody>{#each costCenters as row}<tr><td>{row.key}</td><td>{dec(row.fte)}</td><td>{euro(row.salary)}</td><td>{euro(row.totalCost)}</td></tr>{/each}</tbody></table><small class="foot">*FTE belongs entirely to the primary cost centre.</small></div>
+          <div><h2>Cost centers</h2><table><thead><tr><th>Cost center</th><th>FTE*</th><th>Salary/mo</th><th>Total/mo</th></tr></thead><tbody>{#each costCenters as row}<tr><td>{row.key}</td><td>{dec(row.fte)}</td><td>{euro(row.salary)}</td><td>{euro(row.totalCost)}</td></tr>{/each}</tbody></table><small class="foot">*FTE belongs entirely to the primary cost center.</small></div>
         </div>
       {/if}
     </section>
@@ -49,7 +49,7 @@
 
   {#if config.content === 'report' || config.content === 'org'}
     <section class="print-page org-page">
-      <header><div><span>Organisation chart</span><h1>{config.title || scenario.name}</h1><p>{active.headcount} active people · {dec(active.fte)} FTE</p></div></header>
+      <header><div><span>Organization chart</span><h1>{config.title || scenario.name}</h1><p>{active.headcount} active people · {dec(active.fte)} FTE</p></div></header>
       <div class="branches" style={`--cols:${Math.max(1, Math.min(5, branches.length))}`}>
         {#each branches as branch}
           <div class="branch">
@@ -58,7 +58,7 @@
                 <b>{item.person.name || item.person.id}{item.person.origin === 'new' ? ' · NEW' : ''}</b>
                 <span>{item.person.title || '—'} · {item.person.department || 'No department'}</span>
                 {#if item.person.startsNewTree}<em>Visual tree starts here</em>{/if}
-                {#if config.financialDetail === 'full'}<small>{dec(item.person.workTimePct / 100)} FTE · {euro(item.person.salary)}/mo · {item.person.primaryCostCenter || 'No cost centre'}</small>{/if}
+                {#if config.financialDetail === 'full'}<small>{dec(item.person.workTimePct / 100)} FTE · {euro(item.person.salary)}/mo · {item.person.primaryCostCenter || 'No cost center'}</small>{/if}
               </div>
             {/each}
           </div>
@@ -70,7 +70,7 @@
   {#if config.includeParked && parkedPeople.length}
     <section class="print-page parked-page">
       <header><div><span>Separate population</span><h1>Parked people</h1><p>{parked.headcount} people · {dec(parked.fte)} FTE{config.financialDetail !== 'none' ? ` · ${euro(parked.totalCost)}/mo` : ''}</p></div></header>
-      <table><thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Primary cost centre</th><th>FTE</th>{#if config.financialDetail === 'full'}<th>Salary/mo</th><th>Total/mo</th>{/if}</tr></thead><tbody>{#each parkedPeople as person}<tr><td><b>{person.name || person.id}</b></td><td>{person.title || '—'}</td><td>{person.department || '—'}</td><td>{person.primaryCostCenter || '—'}</td><td>{dec(person.workTimePct / 100)}</td>{#if config.financialDetail === 'full'}<td>{euro(person.salary)}</td><td>{euro(person.salary * (1 + person.socialCostPct / 100))}</td>{/if}</tr>{/each}</tbody></table>
+      <table><thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Primary cost center</th><th>FTE</th>{#if config.financialDetail === 'full'}<th>Salary/mo</th><th>Total/mo</th>{/if}</tr></thead><tbody>{#each parkedPeople as person}<tr><td><b>{person.name || person.id}</b></td><td>{person.title || '—'}</td><td>{person.department || '—'}</td><td>{person.primaryCostCenter || '—'}</td><td>{dec(person.workTimePct / 100)}</td>{#if config.financialDetail === 'full'}<td>{euro(person.salary)}</td><td>{euro(person.salary * (1 + person.socialCostPct / 100))}</td>{/if}</tr>{/each}</tbody></table>
     </section>
   {/if}
 </div>

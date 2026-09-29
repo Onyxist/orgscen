@@ -8,6 +8,7 @@
   import PrintDialog from './lib/components/PrintDialog.svelte';
   import PrintReport from './lib/components/PrintReport.svelte';
   import {
+    createBaseline,
     createScenario,
     currentScenario,
     deepClone,
@@ -33,7 +34,7 @@
   let showNewScenario = false;
   let showPrint = false;
   let printConfig: PrintConfig = defaultPrintConfig('Scenario');
-  let message = 'Import a CSV or an OrgScenario project to begin.';
+  let message = 'Import a CSV or JSON project, or start from scratch.';
 
   $: scenario = project ? currentScenario(project) : null;
   $: baseline = project?.scenarios.find((item) => item.isBaseline) ?? null;
@@ -66,6 +67,17 @@
     if (!project) return;
     project = { ...project, currentScenarioId: id };
     selectedId = null;
+  }
+
+  function startFromScratch() {
+    const draft = createBaseline([]);
+    const created = createScenario(draft, 'Scenario 1', draft.currentScenarioId);
+    draft.scenarios.push(created);
+    draft.currentScenarioId = created.id;
+    project = draft;
+    selectedId = null;
+    printConfig = defaultPrintConfig(created.name);
+    message = 'Blank project ready. Add roles, or import later if you change your mind.';
   }
 
   function addScenario(name: string, basedOnId: string) {
@@ -193,7 +205,7 @@
 
 <div id="app-shell">
   <header class="topbar">
-    <div class="brand"><div class="mark">O</div><div><h1>OrgScenario</h1><span>Organisation & cost scenario modelling</span></div></div>
+    <div class="brand"><div class="mark">O</div><div><h1>OrgScenario</h1><span>Organization & cost scenario modeling</span></div></div>
     <div class="top-actions">
       <label class="file-button">Import<input type="file" accept=".csv,.json,text/csv,application/json" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); event.currentTarget.value = ''; }} /></label>
       <button type="button" disabled={!project} onclick={saveProject}>Save project</button>
@@ -212,7 +224,7 @@
           {/each}
         </select>
         {#if scenario}
-          <div class="lineage">{scenario.isBaseline ? 'Read-only comparison base' : `Based on ${scenario.basedOnScenarioName ?? 'Current organisation'} · snapshot`}</div>
+          <div class="lineage">{scenario.isBaseline ? 'Read-only comparison base' : `Based on ${scenario.basedOnScenarioName ?? 'Current organization'} · snapshot`}</div>
         {/if}
         <div class="button-grid"><button type="button" disabled={!project} onclick={() => showNewScenario = true}>New…</button><button type="button" disabled={!scenario || scenario.isBaseline} onclick={renameScenario}>Rename</button><button type="button" disabled={!scenario || scenario.isBaseline} onclick={restoreScenario}>Reset</button><button type="button" disabled={!scenario || scenario.isBaseline} onclick={deleteScenario}>Delete</button></div>
       </section>
@@ -231,7 +243,7 @@
       <section>
         <span class="section-label">Edit</span>
         <button class="wide primary" type="button" disabled={!scenario || scenario.isBaseline} onclick={addPerson}>+ Add role</button>
-        <p class="hint">Reporting line, department and cost-centre allocation are independent. Moving a card changes only the reporting line.</p>
+        <p class="hint">Reporting line, department, and cost allocation are separate. Moving a card changes only the reporting line.</p>
       </section>
 
       {#if project}
@@ -243,12 +255,12 @@
         </section>
       {/if}
 
-      <section class="privacy"><b>Local-first</b><p>Imported employee data stays in this browser session. Nothing is uploaded by this app.</p></section>
+      <section class="privacy"><b>Local-first</b><p>Imported data stays in this browser session. This app does not upload it.</p></section>
     </aside>
 
     <main>
       {#if !project || !scenario || !baseline}
-        <div class="welcome"><div><span>Local workforce modelling</span><h2>Model the organisation before changing the organisation.</h2><p>Import the existing CSV format. Create scenarios from Current organisation or from any other scenario, then move, park, split costs and print a clean plan.</p><label class="file-button primary">Import CSV<input type="file" accept=".csv,.json" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); }} /></label></div></div>
+        <div class="welcome"><div><span>Local workforce modeling</span><h2>Try the org before doing it for real.</h2><p>Import the CSV you already have, or build from scratch. Then create scenarios, move people around, park roles, split costs, and print something a human can actually read.</p><div class="welcome-actions"><label class="file-button primary">Import CSV or JSON<input type="file" accept=".csv,.json" onchange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importFile(file); event.currentTarget.value = ''; }} /></label><button type="button" class="secondary" onclick={startFromScratch}>Build from scratch</button></div><small>No account. No backend. No database.</small></div></div>
       {:else}
         <div class="scenario-bar"><div><span>{scenario.isBaseline ? 'Comparison base' : 'Scenario'}</span><h2>{scenario.name}</h2></div><div class="scenario-meta">{scenario.people.filter((person) => person.status === 'active').length} active · {scenario.people.filter((person) => person.status === 'parked').length} parked</div></div>
         {#if view === 'org'}

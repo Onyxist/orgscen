@@ -52,12 +52,12 @@
 
   <div class="panel">
     <div class="panel-head">
-      <div><span>{population} population</span><h3>{table === 'department' ? 'Department summary' : 'Cost-centre summary'}</h3></div>
-      <div class="tabs"><button class:active={table === 'department'} onclick={() => table = 'department'}>Departments</button><button class:active={table === 'cost-center'} onclick={() => table = 'cost-center'}>Cost centres</button></div>
+      <div><span>{population} population</span><h3>{table === 'department' ? 'Department summary' : 'Cost center summary'}</h3></div>
+      <div class="tabs"><button class:active={table === 'department'} onclick={() => table = 'department'}>Departments</button><button class:active={table === 'cost-center'} onclick={() => table = 'cost-center'}>Cost centers</button></div>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>{table === 'department' ? 'Department' : 'Cost centre'}</th><th>People</th><th>FTE</th><th>Hours/wk</th><th>Salary/mo</th><th>Employer cost</th><th>Total/mo</th><th>Change/mo</th><th>Annual</th></tr></thead>
+        <thead><tr><th>{table === 'department' ? 'Department' : 'Cost center'}</th><th>People</th><th>FTE</th><th>Hours/wk</th><th>Salary/mo</th><th>Employer cost</th><th>Total/mo</th><th>Change/mo</th><th>Annual</th></tr></thead>
         <tbody>
           {#each rows as row (row.key)}
             <tr>
@@ -67,7 +67,7 @@
         </tbody>
       </table>
     </div>
-    {#if table === 'cost-center'}<p class="footnote">Headcount and FTE are assigned entirely to the primary cost centre. Salary and employer costs follow the person’s salary allocation.</p>{/if}
+    {#if table === 'cost-center'}<p class="footnote">Headcount and FTE are assigned entirely to the primary cost center. Salary and employer costs follow the person’s salary allocation.</p>{/if}
   </div>
 </div>
 

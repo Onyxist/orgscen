@@ -60,7 +60,7 @@ export function currentScenario(project: Project): Scenario {
 export function createBaseline(people: Person[]): Project {
   const baseline: Scenario = {
     id: BASELINE_ID,
-    name: 'Current organisation',
+    name: 'Current organization',
     isBaseline: true,
     basedOnScenarioId: null,
     basedOnScenarioName: null,

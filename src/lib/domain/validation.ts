@@ -39,9 +39,9 @@ export function validatePeople(people: Person[]): ValidationIssue[] {
       const seen = new Set<string>();
       for (const allocation of person.costAllocations) {
         const key = allocation.costCenter.trim();
-        if (!key) issues.push({ level: 'error', personId: person.id, message: `${person.name || person.id}: a cost allocation is missing its cost centre.` });
+        if (!key) issues.push({ level: 'error', personId: person.id, message: `${person.name || person.id}: a cost allocation is missing its cost center.` });
         if (allocation.percent <= 0) issues.push({ level: 'error', personId: person.id, message: `${person.name || person.id}: allocation percentages must be greater than zero.` });
-        if (seen.has(key) && key) issues.push({ level: 'error', personId: person.id, message: `${person.name || person.id}: cost centre ${key} appears more than once in salary allocation.` });
+        if (seen.has(key) && key) issues.push({ level: 'error', personId: person.id, message: `${person.name || person.id}: cost center ${key} appears more than once in salary allocation.` });
         if (key) seen.add(key);
       }
     }

@@ -1,4 +1,4 @@
-Headcount;ID;Name;Title;Department;Work time %;Salary;Employer cost %;Manager ID;Comment;Primary cost centre;Cost allocations
+Headcount;ID;Name;Title;Department;Work time %;Salary;Employer cost %;Manager ID;Comment;Primary cost center;Cost allocations
 1;100;Alex Example;CEO;Executive;100;10000;25;;;EXEC;EXEC:100
 1;200;Casey Example;CFO;Finance;100;7500;25;100;;FIN;FIN:70|SHARED:30
 1;300;Robin Example;COO;Operations;100;7800;25;100;;OPS;OPS:100

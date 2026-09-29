@@ -1,6 +1,9 @@
 import { createBaseline, createScenario, deepClone, type Person, type Project } from '../domain/model';
 import { validatePeople } from '../domain/validation';
 
+const CURRENT_ORGANIZATION = 'Current organization';
+const BASELINE_ALIASES = [CURRENT_ORGANIZATION, 'Current organisation', 'Nykytila'] as const;
+
 const CORE_COLUMNS = [
   '#',
   'ID',
@@ -14,6 +17,22 @@ const CORE_COLUMNS = [
   'Kommentti'
 ] as const;
 
+type CoreColumn = (typeof CORE_COLUMNS)[number];
+type CoreIndexMap = Record<CoreColumn, number>;
+
+const EXPORT_CORE_HEADERS = [
+  'Headcount',
+  'ID',
+  'Name',
+  'Title',
+  'Department',
+  'Work time %',
+  'Salary',
+  'Employer cost %',
+  'Manager ID',
+  'Comment'
+] as const;
+
 const OPTIONAL_COLUMNS = {
   scenario: ['Skenaario', 'Scenario'],
   basedOn: ['Perustuu', 'Based on', 'BasedOn'],
@@ -23,16 +42,16 @@ const OPTIONAL_COLUMNS = {
   startsNewTree: ['Uusi puu', 'Aloita uusi puu', 'Start new tree', 'Visual break']
 } as const;
 
-const ALIASES: Record<(typeof CORE_COLUMNS)[number], string[]> = {
-  '#': ['#', 'lkm', 'maara', 'määrä', 'henkilomaara', 'henkilömäärä'],
+const ALIASES: Record<CoreColumn, string[]> = {
+  '#': ['#', 'lkm', 'maara', 'määrä', 'henkilomaara', 'henkilömäärä', 'headcount'],
   ID: ['id', 'henkiloid', 'henkilöid'],
   Nimi: ['nimi', 'name'],
   Tehtava: ['tehtava', 'tehtävä', 'rooli', 'role', 'title'],
   Osasto: ['osasto', 'department', 'dept'],
-  'Työaika %': ['tyoaika%', 'työaika%', 'tyoaika', 'työaika', 'fte%'],
+  'Työaika %': ['tyoaika%', 'työaika%', 'tyoaika', 'työaika', 'fte%', 'worktime%'],
   Kokonaispalkka: ['kokonaispalkka', 'palkka', 'salary'],
-  'sos. kulup.': ['sos.kulup.', 'sos kulup.', 'soskulup', 'sosiaalikulup', 'sosiaalikulu%', 'sosiaalikulut%', 'socialcost%', 'employercost%'],
-  M_ID: ['m_id', 'mid', 'managerid', 'esihenkiloid', 'esihenkilöid'],
+  'sos. kulup.': ['sos.kulup.', 'sos kulup.', 'soskulup', 'sosiaalikulup', 'sosiaalikulu%', 'sosiaalikulut%', 'socialcost%', 'employercost%', 'employercost'],
+  M_ID: ['m_id', 'mid', 'managerid', 'manager', 'esihenkiloid', 'esihenkilöid'],
   Kommentti: ['kommentti', 'comment', 'comments', 'notes']
 };
 
@@ -41,10 +60,6 @@ export function parseCsvProject(text: string): Project {
   if (!rows.length) throw new Error('CSV is empty.');
 
   const headers = rows[0].map((value) => value.trim());
-  const coreMap = headers.map(coreKeyFor);
-  const missing = CORE_COLUMNS.filter((column) => !coreMap.includes(column));
-  if (missing.length) throw new Error(`Missing required columns: ${missing.join(', ')}`);
-
   const scenarioIndex = optionalIndex(headers, OPTIONAL_COLUMNS.scenario);
   const basedOnIndex = optionalIndex(headers, OPTIONAL_COLUMNS.basedOn);
   const statusIndex = optionalIndex(headers, OPTIONAL_COLUMNS.status);
@@ -52,66 +67,73 @@ export function parseCsvProject(text: string): Project {
   const allocationsIndex = optionalIndex(headers, OPTIONAL_COLUMNS.allocations);
   const startsNewTreeIndex = optionalIndex(headers, OPTIONAL_COLUMNS.startsNewTree);
 
-  const parsed = rows.slice(1).filter((row) => row.some((value) => value.trim())).map((row) => {
-    const raw = Object.fromEntries(CORE_COLUMNS.map((column) => [column, ''])) as Record<(typeof CORE_COLUMNS)[number], string>;
-    coreMap.forEach((column, index) => {
-      if (column) raw[column] = String(row[index] ?? '').trim();
+  const coreIndexes = resolveCoreIndexes(headers, [
+    scenarioIndex,
+    basedOnIndex,
+    statusIndex,
+    primaryCostCenterIndex,
+    allocationsIndex,
+    startsNewTreeIndex
+  ]);
+
+  const parsed = rows
+    .slice(1)
+    .filter((row) => row.some((value) => value.trim()))
+    .map((row) => {
+      const raw = Object.fromEntries(
+        CORE_COLUMNS.map((column) => [column, readCell(row, coreIndexes[column])])
+      ) as Record<CoreColumn, string>;
+
+      const person: Person = {
+        headcount: parseNumber(raw['#']) || 1,
+        id: raw.ID,
+        name: raw.Nimi,
+        title: raw.Tehtava,
+        department: raw.Osasto,
+        workTimePct: normalizePercent(raw['Työaika %'], 100),
+        salary: parseNumber(raw.Kokonaispalkka),
+        socialCostPct: normalizePercent(raw['sos. kulup.'], 0),
+        managerId: raw.M_ID || null,
+        comment: raw.Kommentti,
+        primaryCostCenter: readCell(row, primaryCostCenterIndex),
+        costAllocations: allocationsIndex >= 0 ? parseAllocations(readCell(row, allocationsIndex)) : [],
+        status: statusIndex >= 0 && isParked(readCell(row, statusIndex)) ? 'parked' : 'active',
+        startsNewTree: startsNewTreeIndex >= 0 && isTruthy(readCell(row, startsNewTreeIndex)),
+        origin: 'imported'
+      };
+
+      return {
+        person,
+        scenarioName: readCell(row, scenarioIndex),
+        basedOnName: readCell(row, basedOnIndex)
+      };
     });
 
-    const person: Person = {
-      headcount: parseNumber(raw['#']) || 1,
-      id: raw.ID,
-      name: raw.Nimi,
-      title: raw.Tehtava,
-      department: raw.Osasto,
-      workTimePct: normalizePercent(raw['Työaika %'], 100),
-      salary: parseNumber(raw.Kokonaispalkka),
-      socialCostPct: normalizePercent(raw['sos. kulup.'], 0),
-      managerId: raw.M_ID || null,
-      comment: raw.Kommentti,
-      primaryCostCenter: primaryCostCenterIndex >= 0 ? String(row[primaryCostCenterIndex] ?? '').trim() : '',
-      costAllocations: allocationsIndex >= 0 ? parseAllocations(String(row[allocationsIndex] ?? '')) : [],
-      status: statusIndex >= 0 && isParked(String(row[statusIndex] ?? '')) ? 'parked' : 'active',
-      startsNewTree: startsNewTreeIndex >= 0 && isTruthy(String(row[startsNewTreeIndex] ?? '')),
-      origin: 'imported'
-    };
-
-    return {
-      person,
-      scenarioName: scenarioIndex >= 0 ? String(row[scenarioIndex] ?? '').trim() : '',
-      basedOnName: basedOnIndex >= 0 ? String(row[basedOnIndex] ?? '').trim() : ''
-    };
-  });
-
   if (scenarioIndex < 0) {
-    assertValid(parsed.map((item) => item.person), 'Current organisation');
+    assertValid(parsed.map((item) => item.person), CURRENT_ORGANIZATION);
     return createBaseline(parsed.map((item) => item.person));
   }
 
   const grouped = new Map<string, { people: Person[]; basedOnName: string }>();
   for (const item of parsed) {
-    const name = item.scenarioName || 'Current organisation';
+    const name = item.scenarioName || CURRENT_ORGANIZATION;
     const group = grouped.get(name) ?? { people: [], basedOnName: item.basedOnName };
     group.people.push(item.person);
     if (!group.basedOnName && item.basedOnName) group.basedOnName = item.basedOnName;
     grouped.set(name, group);
   }
 
-  const baselineName = grouped.has('Current organisation')
-    ? 'Current organisation'
-    : grouped.has('Nykytila')
-      ? 'Nykytila'
-      : null;
-  if (!baselineName) throw new Error('Bundled CSV must contain “Current organisation” or “Nykytila”.');
+  const baselineName = BASELINE_ALIASES.find((name) => grouped.has(name)) ?? null;
+  if (!baselineName) throw new Error('Bundled CSV must contain “Current organization” or “Nykytila”.');
 
   const baselinePeople = grouped.get(baselineName)!.people;
   assertValid(baselinePeople, baselineName);
   const project = createBaseline(baselinePeople);
-  project.scenarios[0].name = 'Current organisation';
+  project.scenarios[0].name = CURRENT_ORGANIZATION;
   const baselineIds = new Set(baselinePeople.map((person) => person.id));
 
   const pending = [...grouped.entries()].filter(([name]) => name !== baselineName);
-  const createdByName = new Map<string, string>([['Current organisation', project.scenarios[0].id], ['Nykytila', project.scenarios[0].id]]);
+  const createdByName = new Map<string, string>(BASELINE_ALIASES.map((name) => [name, project.scenarios[0].id]));
 
   while (pending.length) {
     const index = pending.findIndex(([, group]) => !group.basedOnName || createdByName.has(group.basedOnName));
@@ -119,9 +141,12 @@ export function parseCsvProject(text: string): Project {
     assertValid(group.people, name);
     const basedOnId = createdByName.get(group.basedOnName) ?? project.scenarios[0].id;
     const scenario = createScenario(project, name, basedOnId);
-    scenario.people = deepClone(group.people).map((person) => ({ ...person, origin: baselineIds.has(person.id) ? 'imported' : 'new' }));
+    scenario.people = deepClone(group.people).map((person) => ({
+      ...person,
+      origin: baselineIds.has(person.id) ? 'imported' : 'new'
+    }));
     scenario.baseSnapshot = deepClone(scenario.people);
-    scenario.basedOnScenarioName = group.basedOnName || 'Current organisation';
+    scenario.basedOnScenarioName = group.basedOnName || CURRENT_ORGANIZATION;
     project.scenarios.push(scenario);
     createdByName.set(name, scenario.id);
   }
@@ -131,8 +156,13 @@ export function parseCsvProject(text: string): Project {
 
 export function exportCsvProject(project: Project): string {
   const headers = [
-    'Scenario', 'Based on', 'Status', 'Primary cost centre', 'Cost allocations', 'Start new tree',
-    ...CORE_COLUMNS
+    'Scenario',
+    'Based on',
+    'Status',
+    'Primary cost center',
+    'Cost allocations',
+    'Start new tree',
+    ...EXPORT_CORE_HEADERS
   ];
   const lines = [headers.map(quote).join(';')];
 
@@ -172,7 +202,37 @@ export function downloadText(filename: string, content: string, mime: string): v
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function coreKeyFor(header: string): (typeof CORE_COLUMNS)[number] | null {
+function resolveCoreIndexes(headers: string[], reservedIndexes: number[]): CoreIndexMap {
+  const indexes = Object.fromEntries(CORE_COLUMNS.map((column) => [column, -1])) as CoreIndexMap;
+  const taken = new Set<number>(reservedIndexes.filter((index) => index >= 0));
+
+  headers.forEach((header, index) => {
+    const column = coreKeyFor(header);
+    if (column && indexes[column] < 0) {
+      indexes[column] = index;
+      taken.add(index);
+    }
+  });
+
+  const fallbackSlots = headers.map((_, index) => index).filter((index) => !taken.has(index));
+  for (const column of CORE_COLUMNS) {
+    if (indexes[column] >= 0) continue;
+    const slot = fallbackSlots.shift();
+    if (slot === undefined) break;
+    indexes[column] = slot;
+    taken.add(slot);
+  }
+
+  const missing = CORE_COLUMNS.filter((column) => indexes[column] < 0);
+  if (missing.length) throw new Error(`CSV is missing required columns or positions: ${missing.join(', ')}`);
+  return indexes;
+}
+
+function readCell(row: string[], index: number): string {
+  return index >= 0 ? String(row[index] ?? '').trim() : '';
+}
+
+function coreKeyFor(header: string): CoreColumn | null {
   const normalized = normalizeHeader(header);
   for (const key of CORE_COLUMNS) {
     if ([key, ...ALIASES[key]].some((alias) => normalizeHeader(alias) === normalized)) return key;

@@ -92,7 +92,7 @@ export function costCenterSummary(people: Person[], population: Population): Cos
   for (const person of people) {
     if (!include(person, population)) continue;
 
-    // Headcount and FTE belong entirely to the primary cost centre.
+    // Headcount and FTE belong entirely to the primary cost center.
     const primary = ensure(person.primaryCostCenter);
     primary.headcount += person.headcount;
     primary.fte += personFte(person);
